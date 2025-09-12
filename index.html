@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Tacómetro: Revisión vs Validada (HTML, CSS, JS)</title>
+  <title>Tacómetro: Revisión vs Validadas (HTML, CSS, JS)</title>
   <style>
     :root{
       --bg:#0b1220;
@@ -22,6 +22,7 @@
     .card{background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01)); border:1px solid rgba(255,255,255,.06); border-radius:24px; padding:22px; box-shadow: 0 10px 40px rgba(0,0,0,.35); backdrop-filter: blur(6px); max-height:92svh; overflow:clip;} 
     .header{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:16px}
     .title{font-size:22px; font-weight:700; letter-spacing:.2px}
+    .subline{color:var(--muted); font-size:14px; font-weight:700; letter-spacing:.2px; margin-top:2px}
 
     .controls{display:flex; flex-wrap:wrap; gap:10px; align-items:center}
     .field{display:flex; flex-direction:column; gap:6px; background:rgba(255,255,255,.02); border:1px solid rgba(255,255,255,.08); padding:10px 12px; border-radius:14px;}
@@ -30,7 +31,6 @@
     .btn{cursor:pointer; border:none; padding:12px 14px; border-radius:12px; color:#0b0f1a; font-weight:800; letter-spacing:.3px; transition:transform .08s ease, filter .2s ease}
     .btn:hover{filter:brightness(1.05)}
     .btn:active{transform:translateY(1px)}
-    .btn-green{background:linear-gradient(180deg,#34d399,#10b981)}
     .btn-ghost{background:transparent; color:var(--txt); border:1px solid rgba(255,255,255,.14)}
 
     .gauge-box{position:relative; display:grid; place-items:center; padding:10px;}
@@ -44,16 +44,12 @@
     .pill{background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); padding:8px 12px; border-radius:999px; font-weight:700; letter-spacing:.2px}
 
     /* Gauge sizing */
-    .svg-wrap{width:min(820px, 95vw);}
+    .svg-wrap{width:min(820px, 95vw);} 
 
     /* Center readout */
     .readout{position:absolute; text-align:center;}
     .readout .big{font-size:42px; font-weight:900; text-shadow: var(--glow)}
     .readout .sub{color:var(--muted)}
-
-    /* Tests panel */
-    details.tests{margin-top:12px; color:var(--muted)}
-    details.tests pre{background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); padding:10px; border-radius:12px; color:var(--txt); max-height:25svh; overflow:auto}
 
     /* Animated needle dot */
     .pulse{animation: pulse 1.6s infinite cubic-bezier(.66,0,.34,1)}
@@ -66,7 +62,7 @@
   <div class="wrap">
     <div class="card">
       <div class="header">
-        <div class="title">Tacómetro — <span style="color:var(--muted)">Revisión vs Validadas</span></div>
+        <div class="title">Tacómetro<div class="subline">Revisión / Validadas</div></div>
         <div class="controls">
           <div class="field">
             <label>En revisión</label>
@@ -76,7 +72,6 @@
             <label>Validadas</label>
             <input id="valInput" type="number" min="0" step="1" value="68" />
           </div>
-          <button class="btn btn-green" id="applyBtn">Actualizar</button>
           <button class="btn btn-ghost" id="rndBtn">Aleatorio</button>
           <button class="btn btn-ghost" id="fileBtn" title="Cargar XLSX o CSV">Importar XLSX/CSV</button>
           <input id="fileInput" type="file" accept=".xlsx,.csv" hidden />
@@ -130,11 +125,6 @@
       </div>
 
       <div class="stats" id="stats"></div>
-
-      <details class="tests">
-        <summary>Pruebas internas (CSV/XLSX parser)</summary>
-        <pre id="testlog">Cargando pruebas…</pre>
-      </details>
     </div>
   </div>
 
@@ -155,11 +145,9 @@
     stats: document.getElementById('stats'),
     revInput: document.getElementById('revInput'),
     valInput: document.getElementById('valInput'),
-    apply: document.getElementById('applyBtn'),
     rnd: document.getElementById('rndBtn'),
     fileBtn: document.getElementById('fileBtn'),
-    fileInput: document.getElementById('fileInput'),
-    testlog: document.getElementById('testlog')
+    fileInput: document.getElementById('fileInput')
   };
 
   // Helpers
@@ -183,6 +171,10 @@
     const v = Number(n);
     if(!isFinite(v)) return 0;
     return Math.max(0, Math.trunc(v)); // enteros >= 0
+  }
+  function intOrNull(x){
+    const n = Number(x);
+    return Number.isInteger(n) && n >= 0 ? n : null;
   }
 
   // Build static track and ticks
@@ -213,9 +205,7 @@
     el.revInput.value = r; el.valInput.value = v;
   }
 
-  function fmt(n){
-    return new Intl.NumberFormat('es-MX').format(n);
-  }
+  function fmt(n){ return new Intl.NumberFormat('es-MX').format(n); }
 
   function update(rev, val){
     state.rev = toInt(rev);
@@ -274,8 +264,7 @@
     requestAnimationFrame(tick);
   }
 
-  // Wire controls
-  el.apply.addEventListener('click', ()=> update(el.revInput.value, el.valInput.value));
+  // Wire controls (en vivo)
   el.rnd.addEventListener('click', ()=>{
     const a = Math.floor(Math.random()*120);
     const b = Math.floor(Math.random()*120);
@@ -283,7 +272,7 @@
   });
   ['input','change'].forEach(ev=>{
     el.revInput.addEventListener(ev, ()=> update(el.revInput.value, el.valInput.value));
-    el.valInput.addEventListener(ev, ()=> update(el.revInput.value, el.valInput.value));
+    el.valInput.addEventListener(ev, ()=> update(el.valInput.value, el.valInput.value));
   });
 
   // Importar XLSX/CSV
@@ -342,7 +331,7 @@
     let idxRev = headers.findIndex(h=> /(rev|en ?revision)/.test(h));
     let idxVal = headers.findIndex(h=> /(val|validadas?)/.test(h));
     if(idxRev>-1 && idxVal>-1){
-      // Busca última fila con números válidos
+      // Busca última fila con números válidos (>0 en al menos una col)
       for(let i=rows.length-1;i>=1;i--){
         const r = toInt(rows[i][idxRev]);
         const v = toInt(rows[i][idxVal]);
@@ -350,9 +339,9 @@
       }
       return {rev:0, val:0};
     }
-    // Fallback: busca primera fila con >=2 números
+    // Fallback: busca primera fila con >=2 enteros explícitos
     for(const row of rows){
-      const nums = row.map(c=> toInt(c)).filter(x=> Number.isInteger(x));
+      const nums = row.map(c=> intOrNull(c)).filter(x=> x!==null);
       if(nums.length>=2) return {rev:nums[0], val:nums[1]};
     }
     return {rev:0, val:0};
@@ -376,13 +365,13 @@
       }
     }
     for(const row of rows){
-      const nums = row.map(c=> toInt(c)).filter(x=> Number.isInteger(x));
+      const nums = row.map(c=> intOrNull(c)).filter(x=> x!==null);
       if(nums.length>=2) return {rev:nums[0], val:nums[1]};
     }
     return {rev:0, val:0};
   }
 
-  // --- TESTS ---
+  // --- TESTS (consola) ---
   function runTests(){
     const csvCases = [
       {name:'CSV comas con encabezado', txt:'revision,validadas\n10,90', want:{rev:10,val:90}},
@@ -396,6 +385,7 @@
       {name:'XLSX encabezado con acentos/espacios', rows:[["En revisión","VALIDADAS"],[0,0]], want:{rev:0,val:0}},
       {name:'XLSX sin encabezado, dos números', rows:[["foo","bar"],[5,15]], want:{rev:5,val:15}},
       {name:'XLSX múltiples filas, usa la última válida', rows:[["Revision","Validadas"],[1,2],[3,4]], want:{rev:3,val:4}},
+      {name:'XLSX todo cero => Sin datos', rows:[["Revisión","Validadas"],[0,0],[0,0]], want:{rev:0,val:0}},
     ];
 
     let out = [];
@@ -414,8 +404,7 @@
       out.push(`${ok?'✔':'✘'} ${c.name} -> got {rev:${got.rev}, val:${got.val}} want {rev:${c.want.rev}, val:${c.want.val}}`);
     }
 
-    if(el.testlog){ el.testlog.textContent = out.join('\n') + `\n\n${pass}/${csvCases.length+rowsCases.length} pruebas OK`; }
-    console.log('Parser tests:', {pass, total: csvCases.length+rowsCases.length});
+    console.log(out.join('\n')+`\n\n${pass}/${csvCases.length+rowsCases.length} pruebas OK`);
   }
   runTests();
 })();
