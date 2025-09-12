@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Tacómetro: Revisión vs Validada (HTML, CSS, JS)</title>
+  <style>
+    :root{
+      --bg:#0b1220;
+      --card:#0f172a;
+      --muted:#94a3b8;
+      --txt:#e5e7eb;
+      --track:#1f2a44;
+      --rev:#f59e0b;   /* En revisión */
+      --val:#10b981;   /* Validadas */
+      --glow: 0 0 30px rgba(16,185,129,.35), 0 0 50px rgba(245,158,11,.25);
+    }
+    *{box-sizing:border-box}
+    body{margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji"; background: radial-gradient(1000px 600px at 70% 10%, #162447 0%, #0b1220 50%, #070c17 100%); color:var(--txt); height:100svh; min-height:100svh; overflow:hidden; display:grid; place-items:center;}
+
+    .wrap{width:min(900px,95vw); height:100%; display:grid; place-items:center;}
+    .card{background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01)); border:1px solid rgba(255,255,255,.06); border-radius:24px; padding:22px; box-shadow: 0 10px 40px rgba(0,0,0,.35); backdrop-filter: blur(6px); max-height:92svh; overflow:clip;} 
+    .header{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:16px}
+    .title{font-size:22px; font-weight:700; letter-spacing:.2px}
+
+    .controls{display:flex; flex-wrap:wrap; gap:10px; align-items:center}
+    .field{display:flex; flex-direction:column; gap:6px; background:rgba(255,255,255,.02); border:1px solid rgba(255,255,255,.08); padding:10px 12px; border-radius:14px;}
+    .field label{font-size:12px; color:var(--muted)}
+    .field input{appearance:none; border:none; outline:none; background:#0b1220; color:var(--txt); padding:10px 12px; border-radius:10px; width:140px; font-weight:600}
+    .btn{cursor:pointer; border:none; padding:12px 14px; border-radius:12px; color:#0b0f1a; font-weight:800; letter-spacing:.3px; transition:transform .08s ease, filter .2s ease}
+    .btn:hover{filter:brightness(1.05)}
+    .btn:active{transform:translateY(1px)}
+    .btn-green{background:linear-gradient(180deg,#34d399,#10b981)}
+    .btn-ghost{background:transparent; color:var(--txt); border:1px solid rgba(255,255,255,.14)}
+
+    .gauge-box{position:relative; display:grid; place-items:center; padding:10px;}
+    .legend{display:flex; gap:14px; justify-content:center; align-items:center; margin-top:-6px;}
+    .dot{width:12px; height:12px; border-radius:999px; display:inline-block; vertical-align:middle}
+    .dot.rev{background:var(--rev); box-shadow:0 0 14px rgba(245,158,11,.55)}
+    .dot.val{background:var(--val); box-shadow:0 0 14px rgba(16,185,129,.55)}
+    .legend span{color:var(--muted); font-size:14px}
+
+    .stats{display:flex; gap:14px; justify-content:center; margin-top:10px; flex-wrap:wrap}
+    .pill{background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); padding:8px 12px; border-radius:999px; font-weight:700; letter-spacing:.2px}
+
+    /* Gauge sizing */
+    .svg-wrap{width:min(820px, 95vw);}
+
+    /* Center readout */
+    .readout{position:absolute; text-align:center;}
+    .readout .big{font-size:42px; font-weight:900; text-shadow: var(--glow)}
+    .readout .sub{color:var(--muted)}
+
+    /* Tests panel */
+    details.tests{margin-top:12px; color:var(--muted)}
+    details.tests pre{background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); padding:10px; border-radius:12px; color:var(--txt); max-height:25svh; overflow:auto}
+
+    /* Animated needle dot */
+    .pulse{animation: pulse 1.6s infinite cubic-bezier(.66,0,.34,1)}
+    @keyframes pulse{0%{filter:drop-shadow(0 0 0 rgba(16,185,129,.0))} 70%{filter:drop-shadow(0 0 18px rgba(16,185,129,.7))} 100%{filter:drop-shadow(0 0 0 rgba(16,185,129,.0))}}
+  </style>
+  <!-- SheetJS para soportar XLSX en el navegador -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="header">
+        <div class="title">Tacómetro — <span style="color:var(--muted)">Revisión vs Validadas</span></div>
+        <div class="controls">
+          <div class="field">
+            <label>En revisión</label>
+            <input id="revInput" type="number" min="0" step="1" value="32" />
+          </div>
+          <div class="field">
+            <label>Validadas</label>
+            <input id="valInput" type="number" min="0" step="1" value="68" />
+          </div>
+          <button class="btn btn-green" id="applyBtn">Actualizar</button>
+          <button class="btn btn-ghost" id="rndBtn">Aleatorio</button>
+          <button class="btn btn-ghost" id="fileBtn" title="Cargar XLSX o CSV">Importar XLSX/CSV</button>
+          <input id="fileInput" type="file" accept=".xlsx,.csv" hidden />
+        </div>
+      </div>
+
+      <div class="gauge-box">
+        <div class="svg-wrap">
+          <!-- SVG Gauge -->
+          <svg id="gauge" viewBox="0 0 900 520" width="100%">
+            <defs>
+              <filter id="glow">
+                <feGaussianBlur stdDeviation="4.5" result="coloredBlur"/>
+                <feMerge>
+                  <feMergeNode in="coloredBlur"/>
+                  <feMergeNode in="SourceGraphic"/>
+                </feMerge>
+              </filter>
+            </defs>
+
+            <!-- Track -->
+            <g id="dial" transform="translate(450,420)">
+              <!-- background track -->
+              <path id="track" d="" fill="none" stroke="var(--track)" stroke-width="24" stroke-linecap="round"/>
+              <!-- revision arc -->
+              <path id="arcRev" d="" fill="none" stroke="var(--rev)" stroke-width="22" stroke-linecap="round" filter="url(#glow)"/>
+              <!-- valid arc -->
+              <path id="arcVal" d="" fill="none" stroke="var(--val)" stroke-width="22" stroke-linecap="round" filter="url(#glow)"/>
+
+              <!-- ticks -->
+              <g id="ticks"></g>
+
+              <!-- needle group -->
+              <g id="needle" transform="rotate(-120)">
+                <line x1="0" y1="0" x2="0" y2="-205" stroke="#e5e7eb" stroke-width="5" stroke-linecap="round"/>
+                <circle cx="0" cy="0" r="9" fill="var(--val)" class="pulse"/>
+              </g>
+            </g>
+          </svg>
+        </div>
+
+        <div class="readout" style="top: 52%;">
+          <div class="big"><span id="percent">0</span>% validado</div>
+          <div class="sub" id="subtitle">—</div>
+        </div>
+      </div>
+
+      <div class="legend">
+        <span><i class="dot rev"></i> En revisión</span>
+        <span><i class="dot val"></i> Validadas</span>
+      </div>
+
+      <div class="stats" id="stats"></div>
+
+      <details class="tests">
+        <summary>Pruebas internas (CSV/XLSX parser)</summary>
+        <pre id="testlog">Cargando pruebas…</pre>
+      </details>
+    </div>
+  </div>
+
+<script>
+(function(){
+  // Geometry
+  const CENTER_X = 0, CENTER_Y = 0, R = 230;
+  const START = -120, SWEEP = 240; // degrees (tachometer-ish)
+
+  const el = {
+    track: document.getElementById('track'),
+    arcRev: document.getElementById('arcRev'),
+    arcVal: document.getElementById('arcVal'),
+    ticks: document.getElementById('ticks'),
+    needle: document.getElementById('needle'),
+    percent: document.getElementById('percent'),
+    subtitle: document.getElementById('subtitle'),
+    stats: document.getElementById('stats'),
+    revInput: document.getElementById('revInput'),
+    valInput: document.getElementById('valInput'),
+    apply: document.getElementById('applyBtn'),
+    rnd: document.getElementById('rndBtn'),
+    fileBtn: document.getElementById('fileBtn'),
+    fileInput: document.getElementById('fileInput'),
+    testlog: document.getElementById('testlog')
+  };
+
+  // Helpers
+  const toRad = d => (d-90) * Math.PI / 180; // rotate so 0° is up
+  function polar(cx, cy, r, deg){
+    const a = toRad(deg);
+    return { x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) };
+  }
+  function arcPath(cx, cy, r, a0, a1){
+    const p0 = polar(cx, cy, r, a0);
+    const p1 = polar(cx, cy, r, a1);
+    const large = Math.abs(a1 - a0) > 180 ? 1 : 0;
+    const sweep = a1 > a0 ? 1 : 0;
+    return `M ${p0.x.toFixed(3)} ${p0.y.toFixed(3)} A ${r} ${r} 0 ${large} ${sweep} ${p1.x.toFixed(3)} ${p1.y.toFixed(3)}`;
+  }
+
+  function normalize(str){
+    return (str||'').toString().trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  }
+  function toInt(n){
+    const v = Number(n);
+    if(!isFinite(v)) return 0;
+    return Math.max(0, Math.trunc(v)); // enteros >= 0
+  }
+
+  // Build static track and ticks
+  el.track.setAttribute('d', arcPath(CENTER_X, CENTER_Y, R, START, START+SWEEP));
+  for(let i=0;i<=10;i++){
+    const a = START + SWEEP*(i/10);
+    const p0 = polar(CENTER_X, CENTER_Y, R-6, a);
+    const p1 = polar(CENTER_X, CENTER_Y, R-26, a);
+    const tick = document.createElementNS('http://www.w3.org/2000/svg','line');
+    tick.setAttribute('x1', p0.x); tick.setAttribute('y1', p0.y);
+    tick.setAttribute('x2', p1.x); tick.setAttribute('y2', p1.y);
+    tick.setAttribute('stroke', '#334155');
+    tick.setAttribute('stroke-width', i % 5 === 0 ? 4 : 2.6);
+    tick.setAttribute('stroke-linecap','round');
+    el.ticks.appendChild(tick);
+  }
+
+  // State + update
+  let state = { rev: 32, val: 68, angle: START };
+
+  // URL params -> ?rev=12&val=34
+  const params = new URLSearchParams(location.search);
+  const pRev = params.get('rev');
+  const pVal = params.get('val');
+  if(pRev !== null || pVal !== null){
+    const r = toInt(pRev);
+    const v = toInt(pVal);
+    el.revInput.value = r; el.valInput.value = v;
+  }
+
+  function fmt(n){
+    return new Intl.NumberFormat('es-MX').format(n);
+  }
+
+  function update(rev, val){
+    state.rev = toInt(rev);
+    state.val = toInt(val);
+    const total = state.rev + state.val;
+
+    if(total === 0){
+      el.arcRev.setAttribute('d','');
+      el.arcVal.setAttribute('d','');
+      setNeedle(START);
+      el.percent.textContent = 0;
+      el.subtitle.textContent = 'Sin datos';
+      el.stats.innerHTML = `<span class="pill">En revisión: 0</span><span class="pill">Validadas: 0</span><span class="pill">Total: 0</span>`;
+      return;
+    }
+
+    const fracRev = state.rev / total;
+    const fracVal = state.val / total;
+
+    const a0 = START;
+    const aMid = START + SWEEP*fracVal; // verde primero
+    const a1 = START + SWEEP;
+
+    el.arcVal.setAttribute('d', fracVal > 0 ? arcPath(CENTER_X, CENTER_Y, R, a0, aMid) : '');
+    el.arcRev.setAttribute('d', fracRev > 0 ? arcPath(CENTER_X, CENTER_Y, R, aMid, a1) : '');
+
+    const pctVal = Math.round(fracVal*100);
+    const targetAngle = START + SWEEP*(pctVal/100);
+    animateNeedle(targetAngle);
+
+    el.percent.textContent = pctVal;
+    el.subtitle.textContent = `${fmt(state.val)} validadas · ${fmt(state.rev)} en revisión`;
+
+    el.stats.innerHTML = `
+      <span class="pill">En revisión: ${fmt(state.rev)}</span>
+      <span class="pill">Validadas: ${fmt(state.val)}</span>
+      <span class="pill">Total: ${fmt(total)}</span>`;
+  }
+
+  function setNeedle(deg){
+    el.needle.setAttribute('transform', `rotate(${deg})`);
+    state.angle = deg;
+  }
+
+  function animateNeedle(target){
+    const start = state.angle;
+    const delta = target - start;
+    const t0 = performance.now();
+    const D = 650; // ms
+    function tick(now){
+      const k = Math.min(1, (now - t0)/D);
+      const ease = k<.5? 2*k*k : -1 + (4 - 2*k)*k; // ease-in-out quad
+      setNeedle(start + delta*ease);
+      if(k<1) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  }
+
+  // Wire controls
+  el.apply.addEventListener('click', ()=> update(el.revInput.value, el.valInput.value));
+  el.rnd.addEventListener('click', ()=>{
+    const a = Math.floor(Math.random()*120);
+    const b = Math.floor(Math.random()*120);
+    el.revInput.value = a; el.valInput.value = b; update(a,b);
+  });
+  ['input','change'].forEach(ev=>{
+    el.revInput.addEventListener(ev, ()=> update(el.revInput.value, el.valInput.value));
+    el.valInput.addEventListener(ev, ()=> update(el.revInput.value, el.valInput.value));
+  });
+
+  // Importar XLSX/CSV
+  el.fileBtn.addEventListener('click', ()=> el.fileInput.click());
+  el.fileInput.addEventListener('change', async (e)=>{
+    const file = e.target.files?.[0];
+    if(!file) return;
+    try{
+      if(file.name.toLowerCase().endsWith('.xlsx')){
+        const {rev, val} = await readXlsx(file);
+        applyPair(rev, val);
+      } else if(file.name.toLowerCase().endsWith('.csv')){
+        const text = await file.text();
+        const {rev, val} = parseCSVForTwo(text);
+        applyPair(rev, val);
+      } else {
+        alert('Formato no soportado. Usa .xlsx o .csv');
+      }
+    }catch(err){
+      console.error(err);
+      alert('No pude leer el archivo. Revisa que tenga dos columnas: Revisión/Validadas.');
+    } finally {
+      e.target.value = '';
+    }
+  });
+
+  function applyPair(rev, val){
+    rev = toInt(rev); val = toInt(val);
+    if(rev===0 && val===0){
+      el.revInput.value = 0; el.valInput.value = 0; update(0,0); return;
+    }
+    el.revInput.value = rev; el.valInput.value = val; update(rev,val);
+  }
+
+  // First paint
+  if(pRev!==null || pVal!==null){
+    update(el.revInput.value, el.valInput.value);
+  } else {
+    update(state.rev, state.val);
+  }
+
+  // --- XLSX helpers ---
+  async function readXlsx(file){
+    if(typeof XLSX === 'undefined') throw new Error('Librería XLSX no cargada');
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, {type:'array'});
+    const ws = wb.Sheets[wb.SheetNames[0]]; // primera hoja
+    const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''}); // array de arrays
+    return parseRowsForTwo(rows);
+  }
+
+  function parseRowsForTwo(rows){
+    if(!rows || !rows.length) return {rev:0, val:0};
+    // Intenta con encabezados
+    const headers = rows[0].map(h=> normalize(h));
+    let idxRev = headers.findIndex(h=> /(rev|en ?revision)/.test(h));
+    let idxVal = headers.findIndex(h=> /(val|validadas?)/.test(h));
+    if(idxRev>-1 && idxVal>-1){
+      // Busca última fila con números válidos
+      for(let i=rows.length-1;i>=1;i--){
+        const r = toInt(rows[i][idxRev]);
+        const v = toInt(rows[i][idxVal]);
+        if(r||v) return {rev:r, val:v};
+      }
+      return {rev:0, val:0};
+    }
+    // Fallback: busca primera fila con >=2 números
+    for(const row of rows){
+      const nums = row.map(c=> toInt(c)).filter(x=> Number.isInteger(x));
+      if(nums.length>=2) return {rev:nums[0], val:nums[1]};
+    }
+    return {rev:0, val:0};
+  }
+
+  // --- CSV helpers ---
+  function parseCSVForTwo(txt){
+    const lines = txt.split(/\r?\n/).filter(Boolean);
+    if(lines.length===0) return {rev:0, val:0};
+    const first = lines[0];
+    const sep = (first.indexOf('\t')>-1) ? '\t' : (first.indexOf(';')>-1 ? ';' : ',');
+    const rows = lines.map(l=> l.split(new RegExp(`${sep}(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)`)).map(s=> s.replace(/^\"|\"$/g,'').trim()));
+
+    const headers = rows[0].map(h=> normalize(h));
+    let idxRev = headers.findIndex(h=> /(rev|en ?revision)/.test(h));
+    let idxVal = headers.findIndex(h=> /(val|validadas?)/.test(h));
+    if(idxRev>-1 && idxVal>-1 && rows.length>1){
+      for(let i=rows.length-1;i>=1;i--){
+        const r = toInt(rows[i][idxRev]); const v = toInt(rows[i][idxVal]);
+        if(r||v) return {rev:r, val:v};
+      }
+    }
+    for(const row of rows){
+      const nums = row.map(c=> toInt(c)).filter(x=> Number.isInteger(x));
+      if(nums.length>=2) return {rev:nums[0], val:nums[1]};
+    }
+    return {rev:0, val:0};
+  }
+
+  // --- TESTS ---
+  function runTests(){
+    const csvCases = [
+      {name:'CSV comas con encabezado', txt:'revision,validadas\n10,90', want:{rev:10,val:90}},
+      {name:'CSV punto y coma + CRLF', txt:'Revision;Validadas\r\n0;0', want:{rev:0,val:0}},
+      {name:'CSV tabulador sin encabezado', txt:'10\t90', want:{rev:10,val:90}},
+      {name:'CSV con comillas', txt:'"revision","validadas"\n"12","88"', want:{rev:12,val:88}},
+      {name:'CSV: primera fila texto; luego números', txt:'foo,bar\nA,B\n100,200', want:{rev:100,val:200}},
+    ];
+    const rowsCases = [
+      {name:'XLSX filas con encabezado', rows:[["Revisión","Validadas"],[10,90]], want:{rev:10,val:90}},
+      {name:'XLSX encabezado con acentos/espacios', rows:[["En revisión","VALIDADAS"],[0,0]], want:{rev:0,val:0}},
+      {name:'XLSX sin encabezado, dos números', rows:[["foo","bar"],[5,15]], want:{rev:5,val:15}},
+      {name:'XLSX múltiples filas, usa la última válida', rows:[["Revision","Validadas"],[1,2],[3,4]], want:{rev:3,val:4}},
+    ];
+
+    let out = [];
+    let pass = 0;
+
+    for(const c of csvCases){
+      const got = parseCSVForTwo(c.txt);
+      const ok = got.rev===c.want.rev && got.val===c.want.val;
+      pass += ok?1:0;
+      out.push(`${ok?'✔':'✘'} ${c.name} -> got {rev:${got.rev}, val:${got.val}} want {rev:${c.want.rev}, val:${c.want.val}}`);
+    }
+    for(const c of rowsCases){
+      const got = parseRowsForTwo(c.rows);
+      const ok = got.rev===c.want.rev && got.val===c.want.val;
+      pass += ok?1:0;
+      out.push(`${ok?'✔':'✘'} ${c.name} -> got {rev:${got.rev}, val:${got.val}} want {rev:${c.want.rev}, val:${c.want.val}}`);
+    }
+
+    if(el.testlog){ el.testlog.textContent = out.join('\n') + `\n\n${pass}/${csvCases.length+rowsCases.length} pruebas OK`; }
+    console.log('Parser tests:', {pass, total: csvCases.length+rowsCases.length});
+  }
+  runTests();
+})();
+</script>
+</body>
+</html>
