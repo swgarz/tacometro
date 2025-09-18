@@ -1,410 +1,519 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-theme="light">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Tacómetro: Revisión vs Validadas (HTML, CSS, JS)</title>
+  <title>Identificados + Atribuciones</title>
   <style>
     :root{
-      --bg:#0b1220;
-      --card:#0f172a;
-      --muted:#94a3b8;
-      --txt:#e5e7eb;
-      --track:#1f2a44;
-      --rev:#f59e0b;   /* En revisión */
-      --val:#10b981;   /* Validadas */
-      --glow: 0 0 30px rgba(16,185,129,.35), 0 0 50px rgba(245,158,11,.25);
+      --bg: #f5f7fb;
+      --panel: #ffffff;
+      --text: #0b1220;
+      --muted:#6b7280;
+      --accent: #2563eb;
+      --goodA: #22c55e; /* verde base */
+      --goodB: #16a34a; /* verde oscuro */
+      --badA:  #f87171; /* rojo base */
+      --badB:  #ef4444; /* rojo oscuro */
+      --needle:#111827;
+      --ring:#e5e7eb;
+      --shadow: 0 12px 32px rgba(0,0,0,.12);
     }
+    [data-theme="dark"]{
+      --bg: #0b1220;
+      --panel: #0f172a;
+      --text: #e5e7eb;
+      --muted:#94a3b8;
+      --accent: #60a5fa;
+      --goodA: #34d399;
+      --goodB: #16a34a;
+      --badA:  #fca5a5;
+      --badB:  #ef4444;
+      --needle:#f3f4f6;
+      --ring:#1f2937;
+      --shadow: 0 12px 32px rgba(0,0,0,.45);
+    }
+
     *{box-sizing:border-box}
-    body{margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji"; background: radial-gradient(1000px 600px at 70% 10%, #162447 0%, #0b1220 50%, #070c17 100%); color:var(--txt); height:100svh; min-height:100svh; overflow:hidden; display:grid; place-items:center;}
+    html,body{height:100%}
+    body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Noto Sans",sans-serif;background:var(--bg);color:var(--text);}
 
-    .wrap{width:min(900px,95vw); height:100%; display:grid; place-items:center;}
-    .card{background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01)); border:1px solid rgba(255,255,255,.06); border-radius:24px; padding:22px; box-shadow: 0 10px 40px rgba(0,0,0,.35); backdrop-filter: blur(6px); max-height:92svh; overflow:clip;} 
-    .header{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:16px}
-    .title{font-size:22px; font-weight:700; letter-spacing:.2px}
-    .subline{color:var(--muted); font-size:14px; font-weight:700; letter-spacing:.2px; margin-top:2px}
+    .wrap{max-width:1100px;margin:24px auto;padding:16px}
+    .board{background:var(--panel);border:1px solid var(--ring);border-radius:22px;box-shadow:var(--shadow);padding:20px}
 
-    .controls{display:flex; flex-wrap:wrap; gap:10px; align-items:center}
-    .field{display:flex; flex-direction:column; gap:6px; background:rgba(255,255,255,.02); border:1px solid rgba(255,255,255,.08); padding:10px 12px; border-radius:14px;}
-    .field label{font-size:12px; color:var(--muted)}
-    .field input{appearance:none; border:none; outline:none; background:#0b1220; color:var(--txt); padding:10px 12px; border-radius:10px; width:140px; font-weight:600}
-    .btn{cursor:pointer; border:none; padding:12px 14px; border-radius:12px; color:#0b0f1a; font-weight:800; letter-spacing:.3px; transition:transform .08s ease, filter .2s ease}
-    .btn:hover{filter:brightness(1.05)}
-    .btn:active{transform:translateY(1px)}
-    .btn-ghost{background:transparent; color:var(--txt); border:1px solid rgba(255,255,255,.14)}
+    .topbar{display:flex;align-items:center;gap:12px;justify-content:flex-end;margin-bottom:10px}
+    .switch{position:relative;width:54px;height:28px;background:var(--ring);border-radius:999px;cursor:pointer}
+    .switch::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:var(--panel);box-shadow:0 2px 6px rgba(0,0,0,.25);transition:.2s}
+    .switch.on{background:var(--accent)}
+    .switch.on::after{left:29px}
+    .muted{color:var(--muted)}
 
-    .gauge-box{position:relative; display:grid; place-items:center; padding:10px;}
-    .legend{display:flex; gap:14px; justify-content:center; align-items:center; margin-top:-6px;}
-    .dot{width:12px; height:12px; border-radius:999px; display:inline-block; vertical-align:middle}
-    .dot.rev{background:var(--rev); box-shadow:0 0 14px rgba(245,158,11,.55)}
-    .dot.val{background:var(--val); box-shadow:0 0 14px rgba(16,185,129,.55)}
-    .legend span{color:var(--muted); font-size:14px}
+    .row{display:flex;gap:24px;flex-wrap:wrap;align-items:stretch}
+    .gauge-card{flex:1 1 560px;display:flex;flex-direction:column;gap:12px;align-items:center;justify-content:center}
+    .controls{flex:1 1 320px;display:flex;flex-direction:column;gap:14px}
 
-    .stats{display:flex; gap:14px; justify-content:center; margin-top:10px; flex-wrap:wrap}
-    .pill{background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); padding:8px 12px; border-radius:999px; font-weight:700; letter-spacing:.2px}
+    .field{display:flex;flex-direction:column;gap:8px}
+    .label{display:flex;align-items:center;justify-content:space-between}
+    .label b{font-weight:700}
+    .field input[type="number"]{width:100%;padding:12px 14px;border-radius:14px;border:1px solid var(--ring);background:transparent;color:var(--text);outline:0}
+    button{appearance:none;border:0;padding:12px 16px;border-radius:14px;background:var(--accent);color:#fff;font-weight:800;cursor:pointer}
+    button.secondary{background:transparent;color:var(--text);border:1px solid var(--ring)}
 
-    /* Gauge sizing */
-    .svg-wrap{width:min(820px, 95vw);} 
+    .gauge{width:620px;max-width:100%}
+    .gauge svg{display:block;width:100%;height:auto}
+    .tick text{font-size:11px;fill:var(--muted)}
 
-    /* Center readout */
-    .readout{position:absolute; text-align:center;}
-    .readout .big{font-size:42px; font-weight:900; text-shadow: var(--glow)}
-    .readout .sub{color:var(--muted)}
+    #needle{transition: transform .45s cubic-bezier(.2,.8,.2,1)}
+    #arcGreen,#arcRed{transition: stroke-dasharray .45s, stroke-dashoffset .45s}
 
-    /* Animated needle dot */
-    .pulse{animation: pulse 1.6s infinite cubic-bezier(.66,0,.34,1)}
-    @keyframes pulse{0%{filter:drop-shadow(0 0 0 rgba(16,185,129,.0))} 70%{filter:drop-shadow(0 0 18px rgba(16,185,129,.7))} 100%{filter:drop-shadow(0 0 0 rgba(16,185,129,.0))}}
+    @media print{
+      :root{ -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      body{ background:#fff }
+      .wrap{ margin:0; padding:0 }
+      .board{ box-shadow:none; border-radius:0; border:0; padding:10mm }
+      .controls{ display:none }
+      @page{ size: Letter portrait; margin:10mm }
+    }
   </style>
-  <!-- SheetJS para soportar XLSX en el navegador -->
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
   <div class="wrap">
-    <div class="card">
-      <div class="header">
-        <div class="title">Informe Manual de procedimiento<div class="subline">08 al 12 de septiembre de 2025</div></div>
-        <div class="controls">
-          <div class="field">
-            <label>Atribuciones</label>
-            <input id="revInput" type="number" min="0" step="1" value="32" />
-          </div>
-          <div class="field">
-            <label>Identificados</label>
-            <input id="valInput" type="number" min="0" step="1" value="68" />
-          </div>
-          <button class="btn btn-ghost" id="rndBtn">Aleatorio</button>
-          <button class="btn btn-ghost" id="fileBtn" title="Cargar XLSX o CSV"></button>
-          <input id="fileInput" type="file" accept=".xlsx,.csv" hidden />
-        </div>
+    <div class="board">
+      <div class="topbar">
+        <span class="muted">Día</span>
+        <div id="themeSwitch" class="switch" role="button" aria-pressed="false" tabindex="0"></div>
+        <span class="muted">Noche</span>
       </div>
 
-      <div class="gauge-box">
-        <div class="svg-wrap">
-          <!-- SVG Gauge -->
-          <svg id="gauge" viewBox="0 0 900 520" width="100%">
-            <defs>
-              <filter id="glow">
-                <feGaussianBlur stdDeviation="4.5" result="coloredBlur"/>
-                <feMerge>
-                  <feMergeNode in="coloredBlur"/>
-                  <feMergeNode in="SourceGraphic"/>
-                </feMerge>
-              </filter>
-            </defs>
+      <div class="row">
+        <section class="gauge-card">
+          <div id="gaugeHost" class="gauge" aria-label="Indicador">
+            <svg id="svgGauge" viewBox="0 0 220 140" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+              <defs>
+                <linearGradient id="gradGreen" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stop-color="var(--goodA)"/>
+                  <stop offset="100%" stop-color="var(--goodB)"/>
+                </linearGradient>
+                <linearGradient id="gradRed" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stop-color="var(--badA)"/>
+                  <stop offset="100%" stop-color="var(--badB)"/>
+                </linearGradient>
+              </defs>
 
-            <!-- Track -->
-            <g id="dial" transform="translate(450,420)">
-              <!-- background track -->
-              <path id="track" d="" fill="none" stroke="var(--track)" stroke-width="24" stroke-linecap="round"/>
-              <!-- revision arc -->
-              <path id="arcRev" d="" fill="none" stroke="var(--rev)" stroke-width="22" stroke-linecap="round" filter="url(#glow)"/>
-              <!-- valid arc -->
-              <path id="arcVal" d="" fill="none" stroke="var(--val)" stroke-width="22" stroke-linecap="round" filter="url(#glow)"/>
+              <!-- Base exterior -->
+              <path d="M14 120 A96 96 0 0 1 206 120" fill="none" stroke="rgba(0,0,0,.06)" stroke-width="18" stroke-linecap="butt"/>
 
-              <!-- ticks -->
+              <!-- Trayectoria base 180° (para longitud) -->
+              <path id="arcBase" d="M24 120 A86 86 0 0 1 196 120" fill="none" stroke-width="18" stroke-linecap="butt"/>
+              <!-- Zonas -->
+              <path id="arcGreen" d="M24 120 A86 86 0 0 1 196 120" fill="none" stroke-width="18" stroke-linecap="butt"/>
+              <path id="arcRed"   d="M24 120 A86 86 0 0 1 196 120" fill="none" stroke-width="18" stroke-linecap="butt"/>
+
+              <!-- Ticks 0..310 -->
               <g id="ticks"></g>
 
-              <!-- needle group -->
-              <g id="needle" transform="rotate(-120)">
-                <line x1="0" y1="0" x2="0" y2="-205" stroke="#e5e7eb" stroke-width="5" stroke-linecap="round"/>
-                <circle cx="0" cy="0" r="9" fill="var(--val)" class="pulse"/>
+              <!-- Aguja -->
+              <g id="needle" transform="rotate(-90,110,120)">
+                <line x1="110" y1="120" x2="110" y2="32" stroke="var(--needle)" stroke-width="3" />
+                <circle cx="110" cy="120" r="6" fill="var(--needle)" />
               </g>
-            </g>
-          </svg>
-        </div>
 
-        <div class="readout" style="top: 52%;">
-          <div class="big"><span id="percent">0</span>% Identificados</div>
-          <div class="sub" id="subtitle">—</div>
-        </div>
+              <!-- Lectura principal = % Identificados/Atribuciones -->
+              <text id="gaugeValue" x="110" y="108" text-anchor="middle" font-size="24" fill="var(--text)" font-weight="800">0.0</text>
+              <text id="gaugeLabel" x="110" y="140" text-anchor="middle" font-size="10" fill="var(--muted)">% Identificados / Atribuciones</text>
+            </svg>
+          </div>
+        </section>
+
+        <section class="controls">
+          <div class="field">
+            <div class="label"><b>Identificados</b><span id="showIdent" class="muted">0 / 310</span></div>
+            <input id="ident" type="number" min="0" max="310" step="1" placeholder="0-310" value="0" />
+          </div>
+          <div class="field">
+            <div class="label"><b>Atribuciones</b><span id="showAtrib" class="muted">0 / 310</span></div>
+            <input id="atrib" type="number" min="0" max="310" step="1" placeholder="0-310" value="0" />
+          </div>
+          <div class="row" style="gap:12px;align-items:center">
+            <button id="btnAplicar">Aplicar</button>
+            <button id="btnPDF" class="secondary" title="Exportar a PDF">Exportar PDF</button>
+            <button id="btnPNG" class="secondary" title="Exportar PNG transparente (1280×720)">Exportar PNG</button>           
+          </div>
+          <div id="exportStatus" class="muted" style="min-height:1.5em;margin-top:6px"></div>
+          <div id="downloadArea" style="margin-top:6px"></div>
+        </section>
       </div>
-
-    
-
-      <div class="stats" id="stats"></div>
     </div>
   </div>
 
-<script>
-(function(){
-  // Geometry
-  const CENTER_X = 0, CENTER_Y = 0, R = 230;
-  const START = -120, SWEEP = 240; // degrees (tachometer-ish)
+  <script>
+    // ===== Helpers =====
+    const clamp = (n, min, max) => Math.min(Math.max(Number(n)||0, min), max);
+    const pctIdentSobreAtrib = (i, a, cap100=true) => {
+      const A = clamp(a,0,310), I = clamp(i,0,310);
+      if(A === 0) return 0;
+      const p = (I/A)*100; return cap100 ? Math.min(p,100) : p;
+    };
 
-  const el = {
-    track: document.getElementById('track'),
-    arcRev: document.getElementById('arcRev'),
-    arcVal: document.getElementById('arcVal'),
-    ticks: document.getElementById('ticks'),
-    needle: document.getElementById('needle'),
-    percent: document.getElementById('percent'),
-    subtitle: document.getElementById('subtitle'),
-    stats: document.getElementById('stats'),
-    revInput: document.getElementById('revInput'),
-    valInput: document.getElementById('valInput'),
-    rnd: document.getElementById('rndBtn'),
-    fileBtn: document.getElementById('fileBtn'),
-    fileInput: document.getElementById('fileInput')
-  };
-
-  // Helpers
-  const toRad = d => (d-90) * Math.PI / 180; // rotate so 0° is up
-  function polar(cx, cy, r, deg){
-    const a = toRad(deg);
-    return { x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) };
-  }
-  function arcPath(cx, cy, r, a0, a1){
-    const p0 = polar(cx, cy, r, a0);
-    const p1 = polar(cx, cy, r, a1);
-    const large = Math.abs(a1 - a0) > 180 ? 1 : 0;
-    const sweep = a1 > a0 ? 1 : 0;
-    return `M ${p0.x.toFixed(3)} ${p0.y.toFixed(3)} A ${r} ${r} 0 ${large} ${sweep} ${p1.x.toFixed(3)} ${p1.y.toFixed(3)}`;
-  }
-
-  function normalize(str){
-    return (str||'').toString().trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-  }
-  function toInt(n){
-    const v = Number(n);
-    if(!isFinite(v)) return 0;
-    return Math.max(0, Math.trunc(v)); // enteros >= 0
-  }
-  function intOrNull(x){
-    const n = Number(x);
-    return Number.isInteger(n) && n >= 0 ? n : null;
-  }
-
-  // Build static track and ticks
-  el.track.setAttribute('d', arcPath(CENTER_X, CENTER_Y, R, START, START+SWEEP));
-  for(let i=0;i<=10;i++){
-    const a = START + SWEEP*(i/10);
-    const p0 = polar(CENTER_X, CENTER_Y, R-6, a);
-    const p1 = polar(CENTER_X, CENTER_Y, R-26, a);
-    const tick = document.createElementNS('http://www.w3.org/2000/svg','line');
-    tick.setAttribute('x1', p0.x); tick.setAttribute('y1', p0.y);
-    tick.setAttribute('x2', p1.x); tick.setAttribute('y2', p1.y);
-    tick.setAttribute('stroke', '#334155');
-    tick.setAttribute('stroke-width', i % 5 === 0 ? 4 : 2.6);
-    tick.setAttribute('stroke-linecap','round');
-    el.ticks.appendChild(tick);
-  }
-
-  // State + update
-  let state = { rev: 32, val: 68, angle: START };
-
-  // URL params -> ?rev=12&val=34
-  const params = new URLSearchParams(location.search);
-  const pRev = params.get('rev');
-  const pVal = params.get('val');
-  if(pRev !== null || pVal !== null){
-    const r = toInt(pRev);
-    const v = toInt(pVal);
-    el.revInput.value = r; el.valInput.value = v;
-  }
-
-  function fmt(n){ return new Intl.NumberFormat('es-MX').format(n); }
-
-  function update(rev, val){
-    state.rev = toInt(rev);
-    state.val = toInt(val);
-    const total = state.rev + state.val;
-
-    if(total === 0){
-      el.arcRev.setAttribute('d','');
-      el.arcVal.setAttribute('d','');
-      setNeedle(START);
-      el.percent.textContent = 0;
-      el.subtitle.textContent = 'Sin datos';
-      el.stats.innerHTML = `<span class="pill">En revisión: 0</span><span class="pill">Validadas: 0</span><span class="pill">Total: 0</span>`;
-      return;
+    // ===== Tema Día/Noche =====
+    const root = document.documentElement;
+    const themeSwitch = document.getElementById('themeSwitch');
+    function setTheme(mode){
+      root.setAttribute('data-theme', mode);
+      const on = mode === 'dark';
+      themeSwitch.classList.toggle('on', on);
+      themeSwitch.setAttribute('aria-pressed', String(on));
+      try{localStorage.setItem('indicador-theme', mode)}catch(e){}
     }
+    const savedTheme = (()=>{try{return localStorage.getItem('indicador-theme')}catch(e){return null}})();
+    setTheme(savedTheme || 'light');
+    const toggleTheme = ()=> setTheme(root.getAttribute('data-theme')==='dark'?'light':'dark');
+    themeSwitch.addEventListener('click', toggleTheme);
+    themeSwitch.addEventListener('keydown', (e)=>{ if(e.key==='Enter'||e.key===' '){e.preventDefault(); toggleTheme();}});
 
-    const fracRev = state.rev / total;
-    const fracVal = state.val / total;
-
-    const a0 = START;
-    const aMid = START + SWEEP*fracVal; // verde primero
-    const a1 = START + SWEEP;
-
-    el.arcVal.setAttribute('d', fracVal > 0 ? arcPath(CENTER_X, CENTER_Y, R, a0, aMid) : '');
-    el.arcRev.setAttribute('d', fracRev > 0 ? arcPath(CENTER_X, CENTER_Y, R, aMid, a1) : '');
-
-    const pctVal = Math.round(fracVal*100);
-    const targetAngle = START + SWEEP*(pctVal/100);
-    animateNeedle(targetAngle);
-
-    el.percent.textContent = pctVal;
-    el.subtitle.textContent = `${fmt(state.val)} identificadas · ${fmt(state.rev)} atribuciones`;
-
-    el.stats.innerHTML = `
-      <span class="pill">En revisión: ${fmt(state.rev)}</span>
-      <span class="pill">Validadas: ${fmt(state.val)}</span>
-      <span class="pill">Total: ${fmt(total)}</span>`;
-  }
-
-  function setNeedle(deg){
-    el.needle.setAttribute('transform', `rotate(${deg})`);
-    state.angle = deg;
-  }
-
-  function animateNeedle(target){
-    const start = state.angle;
-    const delta = target - start;
-    const t0 = performance.now();
-    const D = 650; // ms
-    function tick(now){
-      const k = Math.min(1, (now - t0)/D);
-      const ease = k<.5? 2*k*k : -1 + (4 - 2*k)*k; // ease-in-out quad
-      setNeedle(start + delta*ease);
-      if(k<1) requestAnimationFrame(tick);
-    }
-    requestAnimationFrame(tick);
-  }
-
-  // Wire controls (en vivo)
-  el.rnd.addEventListener('click', ()=>{
-    const a = Math.floor(Math.random()*120);
-    const b = Math.floor(Math.random()*120);
-    el.revInput.value = a; el.valInput.value = b; update(a,b);
-  });
-  ['input','change'].forEach(ev=>{
-    el.revInput.addEventListener(ev, ()=> update(el.revInput.value, el.valInput.value));
-    el.valInput.addEventListener(ev, ()=> update(el.valInput.value, el.valInput.value));
-  });
-
-  // Importar XLSX/CSV
-  el.fileBtn.addEventListener('click', ()=> el.fileInput.click());
-  el.fileInput.addEventListener('change', async (e)=>{
-    const file = e.target.files?.[0];
-    if(!file) return;
-    try{
-      if(file.name.toLowerCase().endsWith('.xlsx')){
-        const {rev, val} = await readXlsx(file);
-        applyPair(rev, val);
-      } else if(file.name.toLowerCase().endsWith('.csv')){
-        const text = await file.text();
-        const {rev, val} = parseCSVForTwo(text);
-        applyPair(rev, val);
-      } else {
-        alert('Formato no soportado. Usa .xlsx o .csv');
+    // ===== Construye ticks 0..310 (11 marcas, etiquetas cada 2 pasos) =====
+    const ticksG = document.getElementById('ticks');
+    const steps = 10; // 0..10 -> 11 marcas
+    for(let i=0;i<=steps;i++){
+      const angle = -90 + (i*(180/steps)); // -90..90
+      const len = i%5===0 ? 10 : 6;
+      const r1 = 96, r2 = 96-len;
+      const x1 = 110 + r1*Math.cos(angle*Math.PI/180);
+      const y1 = 120 + r1*Math.sin(angle*Math.PI/180);
+      const x2 = 110 + r2*Math.cos(angle*Math.PI/180);
+      const y2 = 120 + r2*Math.sin(angle*Math.PI/180);
+      const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+      g.setAttribute('class','tick');
+      const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+      line.setAttribute('x1',x1); line.setAttribute('y1',y1); line.setAttribute('x2',x2); line.setAttribute('y2',y2);
+      line.setAttribute('stroke','var(--muted)'); line.setAttribute('stroke-width', i%5===0? 1.6:1);
+      g.appendChild(line);
+      if(i%2===0){ // etiquetas: 0, 62, 124, 186, 248, 310 aprox
+        const t = document.createElementNS('http://www.w3.org/2000/svg','text');
+        const rx = 110 + 76*Math.cos(angle*Math.PI/180);
+        const ry = 120 + 76*Math.sin(angle*Math.PI/180);
+        t.setAttribute('x', rx);
+        t.setAttribute('y', ry+4);
+        t.setAttribute('text-anchor','middle');
+        t.textContent = String(Math.round((310/10)*i));
+        t.setAttribute('fill','var(--muted)');
+        t.setAttribute('font-size','11');
+        g.appendChild(t);
       }
-    }catch(err){
-      console.error(err);
-      alert('No pude leer el archivo. Revisa que tenga dos columnas: Revisión/Validadas.');
-    } finally {
-      e.target.value = '';
-    }
-  });
-
-  function applyPair(rev, val){
-    rev = toInt(rev); val = toInt(val);
-    if(rev===0 && val===0){
-      el.revInput.value = 0; el.valInput.value = 0; update(0,0); return;
-    }
-    el.revInput.value = rev; el.valInput.value = val; update(rev,val);
-  }
-
-  // First paint
-  if(pRev!==null || pVal!==null){
-    update(el.revInput.value, el.valInput.value);
-  } else {
-    update(state.rev, state.val);
-  }
-
-  // --- XLSX helpers ---
-  async function readXlsx(file){
-    if(typeof XLSX === 'undefined') throw new Error('Librería XLSX no cargada');
-    const buf = await file.arrayBuffer();
-    const wb = XLSX.read(buf, {type:'array'});
-    const ws = wb.Sheets[wb.SheetNames[0]]; // primera hoja
-    const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''}); // array de arrays
-    return parseRowsForTwo(rows);
-  }
-
-  function parseRowsForTwo(rows){
-    if(!rows || !rows.length) return {rev:0, val:0};
-    // Intenta con encabezados
-    const headers = rows[0].map(h=> normalize(h));
-    let idxRev = headers.findIndex(h=> /(rev|en ?revision)/.test(h));
-    let idxVal = headers.findIndex(h=> /(val|validadas?)/.test(h));
-    if(idxRev>-1 && idxVal>-1){
-      // Busca última fila con números válidos (>0 en al menos una col)
-      for(let i=rows.length-1;i>=1;i--){
-        const r = toInt(rows[i][idxRev]);
-        const v = toInt(rows[i][idxVal]);
-        if(r||v) return {rev:r, val:v};
-      }
-      return {rev:0, val:0};
-    }
-    // Fallback: busca primera fila con >=2 enteros explícitos
-    for(const row of rows){
-      const nums = row.map(c=> intOrNull(c)).filter(x=> x!==null);
-      if(nums.length>=2) return {rev:nums[0], val:nums[1]};
-    }
-    return {rev:0, val:0};
-  }
-
-  // --- CSV helpers ---
-  function parseCSVForTwo(txt){
-    const lines = txt.split(/\r?\n/).filter(Boolean);
-    if(lines.length===0) return {rev:0, val:0};
-    const first = lines[0];
-    const sep = (first.indexOf('\t')>-1) ? '\t' : (first.indexOf(';')>-1 ? ';' : ',');
-    const rows = lines.map(l=> l.split(new RegExp(`${sep}(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)`)).map(s=> s.replace(/^\"|\"$/g,'').trim()));
-
-    const headers = rows[0].map(h=> normalize(h));
-    let idxRev = headers.findIndex(h=> /(rev|en ?revision)/.test(h));
-    let idxVal = headers.findIndex(h=> /(val|validadas?)/.test(h));
-    if(idxRev>-1 && idxVal>-1 && rows.length>1){
-      for(let i=rows.length-1;i>=1;i--){
-        const r = toInt(rows[i][idxRev]); const v = toInt(rows[i][idxVal]);
-        if(r||v) return {rev:r, val:v};
-      }
-    }
-    for(const row of rows){
-      const nums = row.map(c=> intOrNull(c)).filter(x=> x!==null);
-      if(nums.length>=2) return {rev:nums[0], val:nums[1]};
-    }
-    return {rev:0, val:0};
-  }
-
-  // --- TESTS (consola) ---
-  function runTests(){
-    const csvCases = [
-      {name:'CSV comas con encabezado', txt:'revision,validadas\n10,90', want:{rev:10,val:90}},
-      {name:'CSV punto y coma + CRLF', txt:'Revision;Validadas\r\n0;0', want:{rev:0,val:0}},
-      {name:'CSV tabulador sin encabezado', txt:'10\t90', want:{rev:10,val:90}},
-      {name:'CSV con comillas', txt:'"revision","validadas"\n"12","88"', want:{rev:12,val:88}},
-      {name:'CSV: primera fila texto; luego números', txt:'foo,bar\nA,B\n100,200', want:{rev:100,val:200}},
-    ];
-    const rowsCases = [
-      {name:'XLSX filas con encabezado', rows:[["Revisión","Validadas"],[10,90]], want:{rev:10,val:90}},
-      {name:'XLSX encabezado con acentos/espacios', rows:[["En revisión","VALIDADAS"],[0,0]], want:{rev:0,val:0}},
-      {name:'XLSX sin encabezado, dos números', rows:[["foo","bar"],[5,15]], want:{rev:5,val:15}},
-      {name:'XLSX múltiples filas, usa la última válida', rows:[["Revision","Validadas"],[1,2],[3,4]], want:{rev:3,val:4}},
-      {name:'XLSX todo cero => Sin datos', rows:[["Revisión","Validadas"],[0,0],[0,0]], want:{rev:0,val:0}},
-    ];
-
-    let out = [];
-    let pass = 0;
-
-    for(const c of csvCases){
-      const got = parseCSVForTwo(c.txt);
-      const ok = got.rev===c.want.rev && got.val===c.want.val;
-      pass += ok?1:0;
-      out.push(`${ok?'✔':'✘'} ${c.name} -> got {rev:${got.rev}, val:${got.val}} want {rev:${c.want.rev}, val:${c.want.val}}`);
-    }
-    for(const c of rowsCases){
-      const got = parseRowsForTwo(c.rows);
-      const ok = got.rev===c.want.rev && got.val===c.want.val;
-      pass += ok?1:0;
-      out.push(`${ok?'✔':'✘'} ${c.name} -> got {rev:${got.rev}, val:${got.val}} want {rev:${c.want.rev}, val:${c.want.val}}`);
+      ticksG.appendChild(g);
     }
 
-    console.log(out.join('\n')+`\n\n${pass}/${csvCases.length+rowsCases.length} pruebas OK`);
-  }
-  runTests();
-})();
-</script>
+    // ===== DOM refs =====
+    const inputIdent = document.getElementById('ident');
+    const inputAtrib = document.getElementById('atrib');
+    const showIdent = document.getElementById('showIdent');
+    const showAtrib = document.getElementById('showAtrib');
+    const btnAplicar = document.getElementById('btnAplicar');
+    const btnPDF = document.getElementById('btnPDF');
+    const btnPNG = document.getElementById('btnPNG');
+    const btnPNGTight = document.getElementById('btnPNGTight');
+
+    const gaugeValue = document.getElementById('gaugeValue');
+    const gaugeLabel = document.getElementById('gaugeLabel');
+    const needle = document.getElementById('needle');
+    const arcBase = document.getElementById('arcBase');
+    const arcGreen = document.getElementById('arcGreen');
+    const arcRed = document.getElementById('arcRed');
+
+    // Fija strokes inline (para que export herede bien)
+    arcGreen.setAttribute('stroke','url(#gradGreen)');
+    arcRed.setAttribute('stroke','url(#gradRed)');
+    (function(){
+      const rs = getComputedStyle(document.documentElement);
+      const ring = rs.getPropertyValue('--ring').trim() || '#e5e7eb';
+      arcBase.setAttribute('stroke', ring);
+    })();
+
+    // ===== Core =====
+    function setIdent(val){
+      const v = clamp(val, 0, 310);
+      const ratio = v/310; // 0..1
+      const rot = -90 + (ratio * 180);
+      needle.setAttribute('transform', `rotate(${rot},110,120)`);
+      showIdent.textContent = `${v} / 310`;
+      return v;
+    }
+
+    function draw(ident310, atrib310){
+      let L = 0; try{ L = arcBase.getTotalLength(); }catch(_){ L = 0; }
+      if(!L || !isFinite(L)) L = 540; // fallback
+
+      const pGreen = clamp(ident310,0,310)/310;                  // 0..1
+      const pEnd   = Math.min(1, pGreen + clamp(atrib310,0,310)/310); // acumulado, tope 1
+      const pRed   = Math.max(0, pEnd - pGreen);
+
+      arcGreen.setAttribute('stroke-dasharray', `${(L*pGreen).toFixed(2)} ${(L*(1-pGreen)).toFixed(2)}`);
+      arcGreen.setAttribute('stroke-dashoffset', `0`);
+      arcRed.setAttribute('stroke-dasharray', `${(L*pRed).toFixed(2)} ${(L*(1-pRed)).toFixed(2)}`);
+      arcRed.setAttribute('stroke-dashoffset', `${(-L*pGreen).toFixed(2)}`);
+    }
+
+    function updateCenterLabel(ident310, atrib310){
+      const a = clamp(atrib310,0,310);
+      const i = clamp(ident310,0,310);
+      const pct = pctIdentSobreAtrib(i,a,true);
+      gaugeValue.textContent = pct.toFixed(1);
+      gaugeLabel.textContent = `% Identificados / Atribuciones ( ${i} / ${a} )`;
+    }
+
+    function update(){
+      const vi = setIdent(inputIdent.value);
+      const va = clamp(inputAtrib.value, 0, 310);
+      inputAtrib.value = va; showAtrib.textContent = `${va} / 310`;
+      draw(vi, va);
+      updateCenterLabel(vi, va);
+    }
+
+    // Eventos
+    btnAplicar.addEventListener('click', update);
+    inputIdent.addEventListener('input', update);
+    inputAtrib.addEventListener('input', update);
+
+    // ===== Exportar a PDF (iframe oculto) =====
+    function buildPrintHTML(resolvedSVG){
+      return `<!doctype html><html><head><meta charset="utf-8"><title>Export</title>
+        <style>
+          @page{ size: Letter portrait; margin:10mm }
+          html,body{height:100%;}
+          body{margin:0; display:flex; align-items:center; justify-content:center;}
+          :root{ -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          svg{ width:90vw; height:auto; }
+        </style>
+      </head><body>${resolvedSVG}
+      <script>window.addEventListener('load',()=>{ setTimeout(()=>{ window.print(); }, 150); });<\/script>
+      </body></html>`;
+    }
+
+    function resolveSVGColorsForPrint(svgEl){
+      var clone = svgEl.cloneNode(true);
+      var rs = getComputedStyle(document.documentElement);
+      function res(name, fb){ try{ var v = rs.getPropertyValue(name); return (v && v.trim()) || (fb||'#000'); }catch(_){ return fb||'#000'; } }
+      // Gradientes
+      clone.querySelectorAll('stop').forEach(function(st){
+        var c = st.getAttribute('stop-color');
+        if(c && c.indexOf('var(')===0){
+          var n = c.slice(4,-1).trim(); st.setAttribute('stop-color', res(n));
+        }
+      });
+      // fill/stroke con var(...)
+      clone.querySelectorAll('*').forEach(function(el){
+        ['fill','stroke'].forEach(function(attr){
+          var v = el.getAttribute(attr);
+          if(v && v.indexOf('var(')===0){ var n = v.slice(4,-1).trim(); el.setAttribute(attr, res(n)); }
+        });
+      });
+      var ab = clone.getElementById('arcBase'); if(ab){ ab.setAttribute('stroke', res('--ring','#e5e7eb')); }
+      clone.setAttribute('xmlns','http://www.w3.org/2000/svg');
+      clone.setAttribute('xmlns:xlink','http://www.w3.org/1999/xlink');
+      return clone.outerHTML;
+    }
+
+    btnPDF.addEventListener('click', ()=>{
+      try{
+        const svg = document.getElementById('svgGauge');
+        const resolved = resolveSVGColorsForPrint(svg);
+        const html = buildPrintHTML(resolved);
+        const iframe = document.createElement('iframe');
+        Object.assign(iframe.style,{position:'fixed',right:'0',bottom:'0',width:'1px',height:'1px',opacity:'0',pointerEvents:'none'});
+        document.body.appendChild(iframe);
+        iframe.onload = ()=>{ try{ iframe.contentWindow.print(); }catch(_){} setTimeout(()=>{ try{ document.body.removeChild(iframe);}catch(_){} }, 800); };
+        iframe.srcdoc = html;
+      }catch(e){ console.error(e); alert('No se pudo preparar la exportación. Usa Ctrl+P.'); }
+    });
+
+    // ===== Resolver SVG para raster (PNG) =====
+    function resolveSVGForRaster(svgEl){
+      var clone = svgEl.cloneNode(true);
+      var rs = getComputedStyle(document.documentElement);
+      function res(name, fb){ try{ var v = rs.getPropertyValue(name); return (v && v.trim()) || (fb||'#000'); }catch(_){ return fb||'#000'; } }
+      clone.querySelectorAll('stop').forEach(function(st){
+        var c = st.getAttribute('stop-color');
+        if(c && c.indexOf('var(')===0){ var n = c.slice(4,-1).trim(); st.setAttribute('stop-color', res(n)); }
+      });
+      clone.querySelectorAll('*').forEach(function(el){
+        ['fill','stroke'].forEach(function(attr){ var v = el.getAttribute(attr); if(v && v.indexOf('var(')===0){ var n = v.slice(4,-1).trim(); el.setAttribute(attr, res(n)); } });
+      });
+      var ab = clone.getElementById('arcBase'); if(ab){ ab.setAttribute('stroke', res('--ring','#e5e7eb')); }
+      clone.setAttribute('xmlns','http://www.w3.org/2000/svg');
+      clone.setAttribute('xmlns:xlink','http://www.w3.org/1999/xlink');
+      clone.setAttribute('width','220');
+      clone.setAttribute('height','140');
+      return new XMLSerializer().serializeToString(clone);
+    }
+
+    // ===== Exportar PNG transparente (1280x720, centrado) =====
+    function exportPNGTransparent(){
+      var status = document.getElementById('exportStatus');
+      var area = document.getElementById('downloadArea');
+      function setStatus(html){ if(status){ status.innerHTML = html; } }
+      try{
+        var svgEl = document.getElementById('svgGauge');
+        var svgText = resolveSVGForRaster(svgEl);
+
+        // Lienzo rectangular 16:9 (ligero y compatible)
+        var targetW = 1280, targetH = 720;
+        var srcW = 220, srcH = 140; // dimensiones del SVG
+        var s = Math.min(targetW/srcW, targetH/srcH);
+        var drawW = Math.round(srcW*s), drawH = Math.round(srcH*s);
+        var offsetX = Math.floor((targetW - drawW)/2);
+        var offsetY = Math.floor((targetH - drawH)/2);
+
+        var canvas = document.createElement('canvas');
+        canvas.width = targetW; canvas.height = targetH;
+        var ctx = canvas.getContext('2d');
+        if(!ctx){ setStatus('Sin soporte de canvas.'); return; }
+        if('imageSmoothingQuality' in ctx) ctx.imageSmoothingQuality = 'high';
+        ctx.clearRect(0,0,targetW,targetH);
+
+        // Carga el SVG como data URL persistente (no caduca como los Blob URL)
+        var img = new Image();
+        img.decoding = 'sync';
+        img.onload = function(){
+          try{
+            ctx.drawImage(img, offsetX, offsetY, drawW, drawH);
+            // Genera DataURL PNG (transparente) y ofrece descarga + vista previa
+            var data = canvas.toDataURL('image/png');
+
+            if(area){
+              area.innerHTML = '';
+              var a = document.createElement('a');
+              a.href = data; a.download = 'indicador-1280x720.png'; a.textContent = 'Descargar indicador-1280x720.png';
+              a.target = '_blank';
+              var btn = document.createElement('button');
+              btn.className = 'secondary'; btn.style.marginLeft = '8px'; btn.textContent = 'Abrir en pestaña';
+              btn.onclick = function(){ try{ window.open(data, '_blank'); }catch(_){} };
+              var tip = document.createElement('div');
+              tip.className = 'muted'; tip.style.margin = '6px 0';
+              tip.textContent = 'Si no descarga: clic derecho sobre la imagen → "Guardar imagen como…"';
+              var preview = document.createElement('img');
+              preview.src = data; preview.alt = 'Vista previa PNG';
+              preview.style.maxWidth = '420px'; preview.style.height = 'auto'; preview.style.background = 'transparent'; preview.style.display = 'block'; preview.style.marginTop = '6px';
+              area.appendChild(a); area.appendChild(btn); area.appendChild(tip); area.appendChild(preview);
+            }
+
+            // Intento de descarga automática (puede estar bloqueado, por eso dejamos el enlace)
+            try{ var auto = document.createElement('a'); auto.href = data; auto.download = 'indicador-1280x720.png'; document.body.appendChild(auto); auto.click(); document.body.removeChild(auto);}catch(_){ }
+            setStatus('PNG generado.');
+          }catch(e){ console.error(e); setStatus('Error al dibujar la imagen.'); }
+        };
+        img.onerror = function(){
+          // Fallback a base64 si utf-8 falla
+          try{
+            var base64 = btoa(unescape(encodeURIComponent(svgText)));
+            img.onerror = function(){ setStatus('No se pudo preparar el SVG para exportar.'); };
+            img.src = 'data:image/svg+xml;base64,' + base64;
+          }catch(e){ console.error(e); setStatus('No se pudo preparar el SVG para exportar.'); }
+        };
+        // Intento principal: data URL con charset estándar (persistente)
+        img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgText);
+        setStatus('Generando PNG…');
+      }catch(e){ console.error(e); setStatus('Error inesperado al exportar PNG.'); }
+    }
+    btnPNG.addEventListener('click', exportPNGTransparent);
+
+    // ===== Exportar PNG (solo tacómetro, sin fondo) =====
+    function exportPNGTight(){
+      var status = document.getElementById('exportStatus');
+      var area = document.getElementById('downloadArea');
+      function setStatus(t){ if(status){ status.textContent = t; } }
+      try{
+        var svgEl = document.getElementById('svgGauge');
+        var svgText = resolveSVGForRaster(svgEl);
+        var vb = (svgEl.getAttribute('viewBox')||'0 0 220 140').trim().split(/\s+/);
+        var srcW = parseInt(vb[2]||'220',10), srcH = parseInt(vb[3]||'140',10);
+        // Escala para buena nitidez; objetivo ~1920 px de ancho sin sobrepasar 10x
+        var targetWidth = 1920;
+        var scale = Math.max(2, Math.min(10, Math.round(targetWidth/srcW)));
+        var outW = srcW*scale, outH = srcH*scale;
+
+        var canvas = document.createElement('canvas');
+        canvas.width = outW; canvas.height = outH;
+        var ctx = canvas.getContext('2d');
+        if(!ctx){ setStatus('Sin soporte de canvas.'); return; }
+        ctx.clearRect(0,0,outW,outH);
+        if('imageSmoothingQuality' in ctx) ctx.imageSmoothingQuality = 'high';
+
+        var img = new Image();
+        img.onload = function(){
+          try{
+            ctx.drawImage(img, 0, 0, outW, outH);
+            var saveName = 'tacometro.png';
+            if(canvas.toBlob){
+              canvas.toBlob(function(blob){
+                if(!blob){ setStatus('No se pudo crear el PNG.'); return; }
+                if(window.showSaveFilePicker){
+                  window.showSaveFilePicker({
+                    types:[{description:'PNG',accept:{'image/png':['.png']}}],
+                    suggestedName: saveName
+                  }).then(function(handle){
+                    return handle.createWritable().then(function(w){ return w.write(blob).then(function(){ return w.close(); }); });
+                  }).then(function(){ setStatus('PNG guardado en tu equipo.'); })
+                  .catch(function(){
+                    var url = URL.createObjectURL(blob);
+                    offer(url, saveName);
+                    setTimeout(function(){ try{ URL.revokeObjectURL(url);}catch(_){} }, 8000);
+                  });
+                } else if(navigator.msSaveOrOpenBlob){
+                  try{ navigator.msSaveOrOpenBlob(blob, saveName); setStatus('PNG guardado.'); }catch(_){ var urlIE = URL.createObjectURL(blob); offer(urlIE, saveName); setTimeout(function(){ try{ URL.revokeObjectURL(urlIE);}catch(_){} }, 8000); }
+                } else {
+                  var url2 = URL.createObjectURL(blob);
+                  offer(url2, saveName);
+                  setTimeout(function(){ try{ URL.revokeObjectURL(url2);}catch(_){} }, 8000);
+                }
+              }, 'image/png');
+            } else {
+              var data = canvas.toDataURL('image/png');
+              offer(data, saveName);
+            }
+          }catch(e){ console.error(e); setStatus('Error al dibujar.'); }
+        };
+        img.onerror = function(){
+          try{
+            var base64 = btoa(unescape(encodeURIComponent(svgText)));
+            img.onerror = function(){ setStatus('No se pudo preparar el SVG.'); };
+            img.src = 'data:image/svg+xml;base64,' + base64;
+          }catch(e){ console.error(e); setStatus('No se pudo preparar el SVG.'); }
+        };
+        function offer(url, name){
+          if(area){
+            area.innerHTML='';
+            var a=document.createElement('a'); a.href=url; a.download=name; a.textContent='Descargar '+name; a.target='_blank';
+            var btn=document.createElement('button'); btn.className='secondary'; btn.style.marginLeft='8px'; btn.textContent='Abrir'; btn.onclick=function(){ try{ window.open(url, '_blank'); }catch(_){} };
+            var tip=document.createElement('div'); tip.className='muted'; tip.style.margin='6px 0'; tip.textContent='Si el clic no descarga, usa “Abrir” o clic derecho en la imagen.';
+            var imgPrev=document.createElement('img'); imgPrev.src=url; imgPrev.alt='Vista previa'; imgPrev.style.maxWidth='420px'; imgPrev.style.display='block'; imgPrev.style.marginTop='6px';
+            // Botón copiar al portapapeles (si el navegador lo permite)
+            if(window.ClipboardItem && navigator.clipboard){
+              var copyBtn=document.createElement('button'); copyBtn.className='secondary'; copyBtn.style.marginLeft='8px'; copyBtn.textContent='Copiar al portapapeles';
+              canvas.toBlob(function(b){ copyBtn.onclick=function(){ navigator.clipboard.write([new ClipboardItem({'image/png': b})]).then(function(){ setStatus('PNG copiado al portapapeles.'); }).catch(function(){ setStatus('No se pudo copiar.'); }); }; }, 'image/png');
+              area.appendChild(copyBtn);
+            }
+            area.appendChild(a); area.appendChild(btn); area.appendChild(tip); area.appendChild(imgPrev);
+          }
+          try{ var auto=document.createElement('a'); auto.href=url; auto.download=name; document.body.appendChild(auto); auto.click(); document.body.removeChild(auto); }catch(_){ }
+          setStatus('PNG listo.');
+        }
+        img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgText);
+        setStatus('Generando PNG (solo tacómetro)…');
+      }catch(e){ console.error(e); setStatus('Error al exportar.'); }
+    }
+    if (typeof btnPNGTight !== 'undefined' && btnPNGTight) { btnPNGTight.addEventListener('click', exportPNGTight); }
+
+    // Inicio en cero
+    update();
+      // ===== Captura errores globales para mostrarlos en pantalla =====
+    (function(){
+      try{
+        window.addEventListener('error', function(ev){
+          var s = document.getElementById('exportStatus');
+          if(s){ s.textContent = 'Error JS: ' + (ev && (ev.message || ev.error) || 'desconocido'); }
+        });
+      }catch(_){}
+    })();
+  </script>
 </body>
 </html>
