@@ -109,7 +109,7 @@
               <path id="arcGreen" d="M24 120 A86 86 0 0 1 196 120" fill="none" stroke-width="18" stroke-linecap="butt"/>
               <path id="arcRed"   d="M24 120 A86 86 0 0 1 196 120" fill="none" stroke-width="18" stroke-linecap="butt"/>
 
-              <!-- Ticks 0..310 -->
+              <!-- Ticks 0..2459 -->
               <g id="ticks"></g>
 
               <!-- Aguja -->
@@ -127,12 +127,12 @@
 
         <section class="controls">
           <div class="field">
-            <div class="label"><b>Identificados</b><span id="showIdent" class="muted">0 / 310</span></div>
-            <input id="ident" type="number" min="0" max="310" step="1" placeholder="0-310" value="0" />
+            <div class="label"><b>Identificados</b><span id="showIdent" class="muted">0 / 2459</span></div>
+            <input id="ident" type="number" min="0" max="2459" step="1" placeholder="0-2459" value="0" />
           </div>
           <div class="field">
-            <div class="label"><b>Atribuciones</b><span id="showAtrib" class="muted">0 / 310</span></div>
-            <input id="atrib" type="number" min="0" max="310" step="1" placeholder="0-310" value="0" />
+            <div class="label"><b>Atribuciones</b><span id="showAtrib" class="muted">0 / 2459</span></div>
+            <input id="atrib" type="number" min="0" max="2459" step="1" placeholder="0-2459" value="0" />
           </div>
           <div class="row" style="gap:12px;align-items:center">
             <button id="btnAplicar">Aplicar</button>
@@ -147,10 +147,13 @@
   </div>
 
   <script>
+    // ===== Config =====
+    const MAX = 2459;
+
     // ===== Helpers =====
     const clamp = (n, min, max) => Math.min(Math.max(Number(n)||0, min), max);
     const pctIdentSobreAtrib = (i, a, cap100=true) => {
-      const A = clamp(a,0,310), I = clamp(i,0,310);
+      const A = clamp(a,0,MAX), I = clamp(i,0,MAX);
       if(A === 0) return 0;
       const p = (I/A)*100; return cap100 ? Math.min(p,100) : p;
     };
@@ -171,7 +174,7 @@
     themeSwitch.addEventListener('click', toggleTheme);
     themeSwitch.addEventListener('keydown', (e)=>{ if(e.key==='Enter'||e.key===' '){e.preventDefault(); toggleTheme();}});
 
-    // ===== Construye ticks 0..310 (11 marcas, etiquetas cada 2 pasos) =====
+    // ===== Construye ticks 0..MAX (11 marcas) =====
     const ticksG = document.getElementById('ticks');
     const steps = 10; // 0..10 -> 11 marcas
     for(let i=0;i<=steps;i++){
@@ -188,14 +191,14 @@
       line.setAttribute('x1',x1); line.setAttribute('y1',y1); line.setAttribute('x2',x2); line.setAttribute('y2',y2);
       line.setAttribute('stroke','var(--muted)'); line.setAttribute('stroke-width', i%5===0? 1.6:1);
       g.appendChild(line);
-      if(i%2===0){ // etiquetas: 0, 62, 124, 186, 248, 310 aprox
+      if(i%2===0){ // etiquetas aproximadas
         const t = document.createElementNS('http://www.w3.org/2000/svg','text');
         const rx = 110 + 76*Math.cos(angle*Math.PI/180);
         const ry = 120 + 76*Math.sin(angle*Math.PI/180);
         t.setAttribute('x', rx);
         t.setAttribute('y', ry+4);
         t.setAttribute('text-anchor','middle');
-        t.textContent = String(Math.round((310/10)*i));
+        t.textContent = String(Math.round((MAX/10)*i));
         t.setAttribute('fill','var(--muted)');
         t.setAttribute('font-size','11');
         g.appendChild(t);
@@ -211,7 +214,6 @@
     const btnAplicar = document.getElementById('btnAplicar');
     const btnPDF = document.getElementById('btnPDF');
     const btnPNG = document.getElementById('btnPNG');
-    const btnPNGTight = document.getElementById('btnPNGTight');
 
     const gaugeValue = document.getElementById('gaugeValue');
     const gaugeLabel = document.getElementById('gaugeLabel');
@@ -231,20 +233,20 @@
 
     // ===== Core =====
     function setIdent(val){
-      const v = clamp(val, 0, 310);
-      const ratio = v/310; // 0..1
+      const v = clamp(val, 0, MAX);
+      const ratio = v/MAX; // 0..1
       const rot = -90 + (ratio * 180);
       needle.setAttribute('transform', `rotate(${rot},110,120)`);
-      showIdent.textContent = `${v} / 310`;
+      showIdent.textContent = `${v} / ${MAX}`;
       return v;
     }
 
-    function draw(ident310, atrib310){
+    function draw(identMax, atribMax){
       let L = 0; try{ L = arcBase.getTotalLength(); }catch(_){ L = 0; }
       if(!L || !isFinite(L)) L = 540; // fallback
 
-      const pGreen = clamp(ident310,0,310)/310;                  // 0..1
-      const pEnd   = Math.min(1, pGreen + clamp(atrib310,0,310)/310); // acumulado, tope 1
+      const pGreen = clamp(identMax,0,MAX)/MAX;                  // 0..1
+      const pEnd   = Math.min(1, pGreen + clamp(atribMax,0,MAX)/MAX); // acumulado, tope 1
       const pRed   = Math.max(0, pEnd - pGreen);
 
       arcGreen.setAttribute('stroke-dasharray', `${(L*pGreen).toFixed(2)} ${(L*(1-pGreen)).toFixed(2)}`);
@@ -253,9 +255,9 @@
       arcRed.setAttribute('stroke-dashoffset', `${(-L*pGreen).toFixed(2)}`);
     }
 
-    function updateCenterLabel(ident310, atrib310){
-      const a = clamp(atrib310,0,310);
-      const i = clamp(ident310,0,310);
+    function updateCenterLabel(identMax, atribMax){
+      const a = clamp(atribMax,0,MAX);
+      const i = clamp(identMax,0,MAX);
       const pct = pctIdentSobreAtrib(i,a,true);
       gaugeValue.textContent = pct.toFixed(1);
       gaugeLabel.textContent = `% Identificados / Atribuciones ( ${i} / ${a} )`;
@@ -263,8 +265,8 @@
 
     function update(){
       const vi = setIdent(inputIdent.value);
-      const va = clamp(inputAtrib.value, 0, 310);
-      inputAtrib.value = va; showAtrib.textContent = `${va} / 310`;
+      const va = clamp(inputAtrib.value, 0, MAX);
+      inputAtrib.value = va; showAtrib.textContent = `${va} / ${MAX}`;
       draw(vi, va);
       updateCenterLabel(vi, va);
     }
@@ -416,96 +418,10 @@
     }
     btnPNG.addEventListener('click', exportPNGTransparent);
 
-    // ===== Exportar PNG (solo tacómetro, sin fondo) =====
-    function exportPNGTight(){
-      var status = document.getElementById('exportStatus');
-      var area = document.getElementById('downloadArea');
-      function setStatus(t){ if(status){ status.textContent = t; } }
-      try{
-        var svgEl = document.getElementById('svgGauge');
-        var svgText = resolveSVGForRaster(svgEl);
-        var vb = (svgEl.getAttribute('viewBox')||'0 0 220 140').trim().split(/\s+/);
-        var srcW = parseInt(vb[2]||'220',10), srcH = parseInt(vb[3]||'140',10);
-        // Escala para buena nitidez; objetivo ~1920 px de ancho sin sobrepasar 10x
-        var targetWidth = 1920;
-        var scale = Math.max(2, Math.min(10, Math.round(targetWidth/srcW)));
-        var outW = srcW*scale, outH = srcH*scale;
-
-        var canvas = document.createElement('canvas');
-        canvas.width = outW; canvas.height = outH;
-        var ctx = canvas.getContext('2d');
-        if(!ctx){ setStatus('Sin soporte de canvas.'); return; }
-        ctx.clearRect(0,0,outW,outH);
-        if('imageSmoothingQuality' in ctx) ctx.imageSmoothingQuality = 'high';
-
-        var img = new Image();
-        img.onload = function(){
-          try{
-            ctx.drawImage(img, 0, 0, outW, outH);
-            var saveName = 'tacometro.png';
-            if(canvas.toBlob){
-              canvas.toBlob(function(blob){
-                if(!blob){ setStatus('No se pudo crear el PNG.'); return; }
-                if(window.showSaveFilePicker){
-                  window.showSaveFilePicker({
-                    types:[{description:'PNG',accept:{'image/png':['.png']}}],
-                    suggestedName: saveName
-                  }).then(function(handle){
-                    return handle.createWritable().then(function(w){ return w.write(blob).then(function(){ return w.close(); }); });
-                  }).then(function(){ setStatus('PNG guardado en tu equipo.'); })
-                  .catch(function(){
-                    var url = URL.createObjectURL(blob);
-                    offer(url, saveName);
-                    setTimeout(function(){ try{ URL.revokeObjectURL(url);}catch(_){} }, 8000);
-                  });
-                } else if(navigator.msSaveOrOpenBlob){
-                  try{ navigator.msSaveOrOpenBlob(blob, saveName); setStatus('PNG guardado.'); }catch(_){ var urlIE = URL.createObjectURL(blob); offer(urlIE, saveName); setTimeout(function(){ try{ URL.revokeObjectURL(urlIE);}catch(_){} }, 8000); }
-                } else {
-                  var url2 = URL.createObjectURL(blob);
-                  offer(url2, saveName);
-                  setTimeout(function(){ try{ URL.revokeObjectURL(url2);}catch(_){} }, 8000);
-                }
-              }, 'image/png');
-            } else {
-              var data = canvas.toDataURL('image/png');
-              offer(data, saveName);
-            }
-          }catch(e){ console.error(e); setStatus('Error al dibujar.'); }
-        };
-        img.onerror = function(){
-          try{
-            var base64 = btoa(unescape(encodeURIComponent(svgText)));
-            img.onerror = function(){ setStatus('No se pudo preparar el SVG.'); };
-            img.src = 'data:image/svg+xml;base64,' + base64;
-          }catch(e){ console.error(e); setStatus('No se pudo preparar el SVG.'); }
-        };
-        function offer(url, name){
-          if(area){
-            area.innerHTML='';
-            var a=document.createElement('a'); a.href=url; a.download=name; a.textContent='Descargar '+name; a.target='_blank';
-            var btn=document.createElement('button'); btn.className='secondary'; btn.style.marginLeft='8px'; btn.textContent='Abrir'; btn.onclick=function(){ try{ window.open(url, '_blank'); }catch(_){} };
-            var tip=document.createElement('div'); tip.className='muted'; tip.style.margin='6px 0'; tip.textContent='Si el clic no descarga, usa “Abrir” o clic derecho en la imagen.';
-            var imgPrev=document.createElement('img'); imgPrev.src=url; imgPrev.alt='Vista previa'; imgPrev.style.maxWidth='420px'; imgPrev.style.display='block'; imgPrev.style.marginTop='6px';
-            // Botón copiar al portapapeles (si el navegador lo permite)
-            if(window.ClipboardItem && navigator.clipboard){
-              var copyBtn=document.createElement('button'); copyBtn.className='secondary'; copyBtn.style.marginLeft='8px'; copyBtn.textContent='Copiar al portapapeles';
-              canvas.toBlob(function(b){ copyBtn.onclick=function(){ navigator.clipboard.write([new ClipboardItem({'image/png': b})]).then(function(){ setStatus('PNG copiado al portapapeles.'); }).catch(function(){ setStatus('No se pudo copiar.'); }); }; }, 'image/png');
-              area.appendChild(copyBtn);
-            }
-            area.appendChild(a); area.appendChild(btn); area.appendChild(tip); area.appendChild(imgPrev);
-          }
-          try{ var auto=document.createElement('a'); auto.href=url; auto.download=name; document.body.appendChild(auto); auto.click(); document.body.removeChild(auto); }catch(_){ }
-          setStatus('PNG listo.');
-        }
-        img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgText);
-        setStatus('Generando PNG (solo tacómetro)…');
-      }catch(e){ console.error(e); setStatus('Error al exportar.'); }
-    }
-    if (typeof btnPNGTight !== 'undefined' && btnPNGTight) { btnPNGTight.addEventListener('click', exportPNGTight); }
-
     // Inicio en cero
     update();
-      // ===== Captura errores globales para mostrarlos en pantalla =====
+
+    // ===== Captura errores globales para mostrarlos en pantalla =====
     (function(){
       try{
         window.addEventListener('error', function(ev){
