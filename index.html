@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Identificados + Atribuciones (MAX 500)</title>
+  <title>Identificados + Atribuciones (MAX 720)<\/title>
   <style>
     :root{
       --bg: #f5f7fb;
@@ -127,12 +127,12 @@
 
         <section class="controls">
           <div class="field">
-            <div class="label"><b>Identificados</b><span id="showIdent" class="muted">0 / 500</span></div>
-            <input id="ident" type="number" min="0" max="500" step="1" placeholder="0-500" value="0" />
+            <div class="label"><b>Identificados</b><span id="showIdent" class="muted">0 / 720</span></div>
+            <input id="ident" type="number" min="0" max="720" step="1" placeholder="0-720" value="0" />
           </div>
           <div class="field">
-            <div class="label"><b>Atribuciones</b><span id="showAtrib" class="muted">0 / 500</span></div>
-            <input id="atrib" type="number" min="0" max="500" step="1" placeholder="0-500" value="0" />
+            <div class="label"><b>Atribuciones</b><span id="showAtrib" class="muted">0 / 720</span></div>
+            <input id="atrib" type="number" min="0" max="720" step="1" placeholder="0-720" value="0" />
           </div>
           <div class="row" style="gap:12px;align-items:center">
             <button id="btnAplicar">Aplicar</button>
@@ -148,7 +148,7 @@
 
   <script>
     // ===== Config =====
-    const MAX = 500; // <-- cambiado de 2459 a 500
+    const MAX = 720; // <-- cambiado de 2459 a 500
 
     // ===== Helpers =====
     const clamp = (n, min, max) => Math.min(Math.max(Number(n)||0, min), max);
