@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Identificados + Atribuciones (MAX 720)<\/title>
+  <title>Identificados + Atribuciones</title>
   <style>
     :root{
       --bg: #f5f7fb;
@@ -137,7 +137,7 @@
           <div class="row" style="gap:12px;align-items:center">
             <button id="btnAplicar">Aplicar</button>
             <button id="btnPDF" class="secondary" title="Exportar a PDF">Exportar PDF</button>
-            <button id="btnPNG" class="secondary" title="Exportar PNG transparente (1280×720)">Exportar PNG</button>           
+            <button id="btnPNG" class="secondary" title="Exportar PNG transparente (1280×720)">Exportar PNG</button>
           </div>
           <div id="exportStatus" class="muted" style="min-height:1.5em;margin-top:6px"></div>
           <div id="downloadArea" style="margin-top:6px"></div>
@@ -148,7 +148,7 @@
 
   <script>
     // ===== Config =====
-    const MAX = 720; // <-- cambiado de 2459 a 500
+    const MAX = 720;
 
     // ===== Helpers =====
     const clamp = (n, min, max) => Math.min(Math.max(Number(n)||0, min), max);
@@ -191,7 +191,7 @@
       line.setAttribute('x1',x1); line.setAttribute('y1',y1); line.setAttribute('x2',x2); line.setAttribute('y2',y2);
       line.setAttribute('stroke','var(--muted)'); line.setAttribute('stroke-width', i%5===0? 1.6:1);
       g.appendChild(line);
-      if(i%2===0){ // etiquetas aproximadas
+      if(i%2===0){ // etiquetas
         const t = document.createElementNS('http://www.w3.org/2000/svg','text');
         const rx = 110 + 76*Math.cos(angle*Math.PI/180);
         const ry = 120 + 76*Math.sin(angle*Math.PI/180);
@@ -277,35 +277,56 @@
     inputAtrib.addEventListener('input', update);
 
     // ===== Exportar a PDF (iframe oculto) =====
-    // (Reemplazo) Exportar a PDF sin plantillas con ${...}
-function printSVGToIframe(svgEl){
-  const resolved = resolveSVGColorsForPrint(svgEl);
-  const iframe = document.createElement('iframe');
-  Object.assign(iframe.style,{position:'fixed',right:'0',bottom:'0',width:'1px',height:'1px',opacity:'0',pointerEvents:'none'});
-  document.body.appendChild(iframe);
-  const doc = iframe.contentDocument || iframe.contentWindow.document;
-  doc.open();
-  doc.write('<!doctype html><html><head><meta charset="utf-8"><title>Export</title>'+
-            '<style>@page{size: Letter portrait; margin:10mm} html,body{height:100%} body{margin:0;display:flex;align-items:center;justify-content:center} :root{-webkit-print-color-adjust:exact;print-color-adjust:exact} svg{width:90vw;height:auto}</style>'+
-            '</head><body></body></html>');
-  doc.close();
-  try{
-    const parsed = new DOMParser().parseFromString(resolved,'image/svg+xml');
-    const svgNode = parsed.documentElement;
-    doc.body.appendChild(doc.importNode(svgNode,true));
-  }catch(e){
-    // Fallback: pegar como HTML
-    doc.body.innerHTML = resolved;
-  }
-  setTimeout(()=>{ try{ iframe.contentWindow.print(); }catch(_){} setTimeout(()=>{ try{ document.body.removeChild(iframe);}catch(_){} }, 800); }, 150);
-}
+    function buildPrintHTML(resolvedSVG){
+      return `<!doctype html><html><head><meta charset="utf-8"><title>Export</title>
+        <style>
+          @page{ size: Letter portrait; margin:10mm }
+          html,body{height:100%;}
+          body{margin:0; display:flex; align-items:center; justify-content:center;}
+          :root{ -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          svg{ width:90vw; height:auto; }
+        </style>
+      </head><body>${resolvedSVG}
+      <script>window.addEventListener('load',()=>{ setTimeout(()=>{ window.print(); }, 150); });<\/script>
+      </body></html>`;
+    }
 
-btnPDF.addEventListener('click', ()=>{
-  try{
-    const svg = document.getElementById('svgGauge');
-    printSVGToIframe(svg);
-  }catch(e){ console.error(e); alert('No se pudo preparar la exportación. Usa Ctrl+P.'); }
-});
+    function resolveSVGColorsForPrint(svgEl){
+      var clone = svgEl.cloneNode(true);
+      var rs = getComputedStyle(document.documentElement);
+      function res(name, fb){ try{ var v = rs.getPropertyValue(name); return (v && v.trim()) || (fb||'#000'); }catch(_){ return fb||'#000'; } }
+      // Gradientes
+      clone.querySelectorAll('stop').forEach(function(st){
+        var c = st.getAttribute('stop-color');
+        if(c && c.indexOf('var(')===0){
+          var n = c.slice(4,-1).trim(); st.setAttribute('stop-color', res(n));
+        }
+      });
+      // fill/stroke con var(...)
+      clone.querySelectorAll('*').forEach(function(el){
+        ['fill','stroke'].forEach(function(attr){
+          var v = el.getAttribute(attr);
+          if(v && v.indexOf('var(')===0){ var n = v.slice(4,-1).trim(); el.setAttribute(attr, res(n)); }
+        });
+      });
+      var ab = clone.getElementById('arcBase'); if(ab){ ab.setAttribute('stroke', res('--ring','#e5e7eb')); }
+      clone.setAttribute('xmlns','http://www.w3.org/2000/svg');
+      clone.setAttribute('xmlns:xlink','http://www.w3.org/1999/xlink');
+      return clone.outerHTML;
+    }
+
+    btnPDF.addEventListener('click', ()=>{
+      try{
+        const svg = document.getElementById('svgGauge');
+        const resolved = resolveSVGColorsForPrint(svg);
+        const html = buildPrintHTML(resolved);
+        const iframe = document.createElement('iframe');
+        Object.assign(iframe.style,{position:'fixed',right:'0',bottom:'0',width:'1px',height:'1px',opacity:'0',pointerEvents:'none'});
+        document.body.appendChild(iframe);
+        iframe.onload = ()=>{ try{ iframe.contentWindow.print(); }catch(_){} setTimeout(()=>{ try{ document.body.removeChild(iframe);}catch(_){} }, 800); };
+        iframe.srcdoc = html;
+      }catch(e){ console.error(e); alert('No se pudo preparar la exportación. Usa Ctrl+P.'); }
+    });
 
     // ===== Resolver SVG para raster (PNG) =====
     function resolveSVGForRaster(svgEl){
@@ -407,7 +428,7 @@ btnPDF.addEventListener('click', ()=>{
           var s = document.getElementById('exportStatus');
           if(s){ s.textContent = 'Error JS: ' + (ev && (ev.message || ev.error) || 'desconocido'); }
         });
-      }catch(_){}}
+      }catch(_){} }
     )();
   </script>
 </body>
