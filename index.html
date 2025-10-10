@@ -259,7 +259,7 @@
       const a = clamp(atribMax,0,MAX);
       const i = clamp(identMax,0,MAX);
       const pct = pctIdentSobreAtrib(i,a,true);
-      gaugeValue.textContent = pct.toFixed(1);
+      gaugeValue.textContent = pct.toFixed(1) + '%';
       gaugeLabel.textContent = `% Procedimientos identificados ( ${i} / ${a} )`;
     }
 
